@@ -83,11 +83,7 @@ pub async fn upload_video(
     let orig_name = original_filename.unwrap_or_else(|| "untitled.mp4".to_string());
 
     let id = Uuid::new_v4().to_string();
-    let ext = std::path::Path::new(&orig_name)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("mp4");
-    let stored_name = format!("{id}.{ext}");
+    let stored_name = orig_name.clone();
 
     let file_path = state.video_dir.join(&stored_name);
     fs::write(&file_path, &data)?;
@@ -219,12 +215,8 @@ pub async fn resync_videos(
                     }
                     if !existing_files.contains(name) {
                         let id = Uuid::new_v4().to_string();
-                        let stored_name = path
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("unknown.mp4")
-                            .to_string();
-                        let original_filename = stored_name.clone();
+                        let stored_name = name.to_string();
+                        let original_filename = name.to_string();
                         let size = fs::metadata(&path)?.len();
                         let duration = metadata::get_duration_secs(&path);
                         let uploaded_at = fs::metadata(&path)?
