@@ -196,6 +196,19 @@
 
   .btn-delete:hover { background: #4a2020; }
 
+  .btn-resync {
+    background: #2a2a3e;
+    color: #e0e0e0;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: 1px solid #3a3a5e;
+    font-weight: 500;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .btn-resync:hover { background: #3a3a5e; border-color: #6c63ff; }
+  .btn-resync:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -243,6 +256,7 @@
 
 <header>
   <h1>Video Manager</h1>
+  <button class="btn btn-resync" id="resync-btn">Resync</button>
 </header>
 
 <div class="container">
@@ -275,6 +289,7 @@ const videoList = document.getElementById('video-list');
 const modal = document.getElementById('modal');
 const modalVideo = document.getElementById('modal-video');
 const modalClose = document.getElementById('modal-close');
+const resyncBtn = document.getElementById('resync-btn');
 
 uploadZone.addEventListener('click', () => fileInput.click());
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
@@ -287,6 +302,7 @@ uploadZone.addEventListener('drop', e => {
 fileInput.addEventListener('change', e => handleFiles(e.target.files));
 modalClose.addEventListener('click', () => { modal.classList.remove('active'); modalVideo.src = ''; });
 modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.remove('active'); modalVideo.src = ''; } });
+resyncBtn.addEventListener('click', resyncVideos);
 
 function formatSize(bytes) {
   if (bytes < 1024) return bytes + ' B';
@@ -353,6 +369,21 @@ async function loadVideos() {
   const res = await fetch('/api/videos');
   const videos = await res.json();
   renderVideos(videos);
+}
+
+async function resyncVideos() {
+  resyncBtn.disabled = true;
+  resyncBtn.textContent = 'Syncing...';
+  try {
+    const res = await fetch('/api/resync', { method: 'POST' });
+    const videos = await res.json();
+    renderVideos(videos);
+  } catch (e) {
+    alert('Resync failed: ' + e.message);
+  } finally {
+    resyncBtn.disabled = false;
+    resyncBtn.textContent = 'Resync';
+  }
 }
 
 async function handleFiles(files) {

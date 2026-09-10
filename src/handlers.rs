@@ -6,6 +6,7 @@ use axum::response::Response;
 use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -195,4 +196,69 @@ pub async fn delete_video(
 
     save_metadata(&state, &entries).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn resync_videos(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<VideoEntry>>, AppError> {
+    let existing = load_metadata(&state).await?;
+    let existing_files: HashSet<String> = existing
+        .iter()
+        .map(|e| e.stored_filename.clone())
+        .collect();
+
+    let mut entries: Vec<VideoEntry> = Vec::new();
+    if state.video_dir.exists() {
+        for entry in fs::read_dir(&state.video_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name == "videos.json" {
+                        continue;
+                    }
+                    if !existing_files.contains(name) {
+                        let id = Uuid::new_v4().to_string();
+                        let stored_name = path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("unknown.mp4")
+                            .to_string();
+                        let original_filename = stored_name.clone();
+                        let size = fs::metadata(&path)?.len();
+                        let duration = metadata::get_duration_secs(&path);
+                        let uploaded_at = fs::metadata(&path)?
+                            .modified()
+                            .ok()
+                            .and_then(|t| {
+                                let sys_time: std::time::SystemTime = t;
+                                Some(DateTime::<Utc>::from(sys_time))
+                            })
+                            .unwrap_or_else(Utc::now);
+
+                        let new_entry = VideoEntry {
+                            id,
+                            original_filename,
+                            stored_filename: stored_name,
+                            size,
+                            duration,
+                            uploaded_at,
+                        };
+                        entries.push(new_entry);
+                    }
+                }
+            }
+        }
+    }
+
+    for entry in &existing {
+        let file_path = state.video_dir.join(&entry.stored_filename);
+        if file_path.exists() {
+            entries.push(entry.clone());
+        }
+    }
+
+    entries.sort_by(|a, b| b.uploaded_at.cmp(&a.uploaded_at));
+    save_metadata(&state, &entries).await?;
+    Ok(Json(entries))
 }

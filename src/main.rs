@@ -39,6 +39,7 @@ async fn main() {
         .route("/", get(|| async { Html(INDEX_HTML) }))
         .route("/api/videos", get(handlers::list_videos))
         .route("/api/upload", post(handlers::upload_video))
+        .route("/api/resync", post(handlers::resync_videos))
         .route("/api/videos/{id}/stream", get(handlers::stream_video))
         .route("/api/videos/{id}", delete(handlers::delete_video))
         .layer(cors)
