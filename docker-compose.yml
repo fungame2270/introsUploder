@@ -1,0 +1,11 @@
+services:
+  video-manager:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./videos:/app/videos
+    environment:
+      - VIDEO_DIR=/app/videos
+      - PORT=3000
+    restart: unless-stopped
